@@ -1,6 +1,7 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { downloadFile, toCsv, toGpx, toKml } from './exporters'
 import { distanceNm, toLatLng, turnRadiusNm, type LatLng, type Placement } from './geometry'
+import { initialLanguage, LANGUAGES, MESSAGES, saveLanguage, type Language } from './i18n'
 import { RouteMap } from './RouteMap'
 import { TracePreview } from './TracePreview'
 import { autoSettings, rasterize, traceImage, type GrayImage, type TraceSettings } from './tracing'
@@ -62,12 +63,14 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('No se pudo leer la imagen'))
+    image.onerror = () => reject(new Error('Image could not be decoded'))
     image.src = URL.createObjectURL(file)
   })
 }
 
 export default function App() {
+  const [language, setLanguage] = useState<Language>(initialLanguage)
+  const t = MESSAGES[language]
   const [source, setSource] = useState<Source | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -84,6 +87,15 @@ export default function App() {
     rotationDeg: 0,
   })
 
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
+  const changeLanguage = (next: Language) => {
+    setLanguage(next)
+    saveLanguage(next)
+  }
+
   const updateSettings = (change: Partial<TraceSettings>) =>
     setSettings((current) => ({ ...current, ...change }))
 
@@ -96,7 +108,7 @@ export default function App() {
       updateSettings(autoSettings(gray))
       setError(null)
     } catch {
-      setError('Ese archivo no es una imagen válida.')
+      setError(t.invalidImage)
     }
   }
 
@@ -126,7 +138,7 @@ export default function App() {
     return { totalNm, jumpNm, minutes: (totalNm / speedKt) * 60 }
   }, [traced, route, speedKt])
 
-  const routeName = source?.name ?? 'dibujo'
+  const routeName = source?.name ?? t.defaultRouteName
   const exports = [
     { label: 'GPX', build: () => toGpx(route, routeName), extension: 'gpx', mime: 'application/gpx+xml' },
     { label: 'KML', build: () => toKml(route, routeName), extension: 'kml', mime: 'application/vnd.google-earth.kml+xml' },
@@ -148,10 +160,26 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col font-sans lg:h-dvh">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-line px-5">
-        <h1 className="text-[17px] font-medium tracking-tight">Dibujos de vuelo</h1>
-        <p className="hidden text-sm text-muted sm:block">
-          De una imagen a una ruta de waypoints que dibuja con el rastro del avión
-        </p>
+        <div className="flex items-baseline gap-4">
+          <h1 className="text-[17px] font-medium tracking-tight">Image to Flight</h1>
+          <p className="hidden text-sm text-muted md:block">{t.tagline}</p>
+        </div>
+        <div className="flex gap-1" role="group" aria-label="Language">
+          {(Object.keys(LANGUAGES) as Language[]).map((code) => (
+            <button
+              key={code}
+              lang={code}
+              title={LANGUAGES[code]}
+              aria-pressed={code === language}
+              onClick={() => changeLanguage(code)}
+              className={`rounded-md px-2 py-1 font-mono text-[13px] uppercase transition active:scale-[0.96] ${
+                code === language ? 'bg-ink text-paper' : 'text-muted hover:bg-panel hover:text-ink'
+              }`}
+            >
+              {code}
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className="grid flex-1 lg:min-h-0 lg:grid-cols-[400px_1fr]">
@@ -176,7 +204,7 @@ export default function App() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className={`${buttonClass} cursor-pointer`}>
-                    Cambiar imagen
+                    {t.changeImage}
                     {fileInput}
                   </label>
                   <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm">
@@ -186,15 +214,15 @@ export default function App() {
                       onChange={(event) => setShowImage(event.target.checked)}
                       className="accent-route"
                     />
-                    Ver original
+                    {t.showOriginal}
                   </label>
                 </div>
                 <p className="flex gap-4 text-[13px] text-muted">
                   <span className="flex items-center gap-1.5">
-                    <span className="h-0.5 w-5 bg-route" /> Trazo
+                    <span className="h-0.5 w-5 bg-route" /> {t.legendDrawn}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="h-0 w-5 border-t-2 border-dashed border-jump" /> Enlace visible
+                    <span className="h-0 w-5 border-t-2 border-dashed border-jump" /> {t.legendJump}
                   </span>
                 </p>
               </div>
@@ -204,12 +232,9 @@ export default function App() {
                   isDragging ? 'border-route bg-white' : 'border-ink/25 hover:border-ink/50 hover:bg-panel'
                 }`}
               >
-                <span className="text-xl font-medium tracking-tight">Sube una imagen</span>
-                <span className="text-[15px] leading-relaxed text-muted">
-                  Un logo o una silueta con buen contraste funciona mejor. Arrástrala aquí o
-                  haz clic para elegirla.
-                </span>
-                <span className={`${primaryButtonClass} mx-auto mt-2`}>Elegir imagen</span>
+                <span className="text-xl font-medium tracking-tight">{t.uploadTitle}</span>
+                <span className="text-[15px] leading-relaxed text-muted">{t.uploadHint}</span>
+                <span className={`${primaryButtonClass} mx-auto mt-2`}>{t.chooseImage}</span>
                 {fileInput}
               </label>
             )}
@@ -217,19 +242,19 @@ export default function App() {
           </div>
 
           <Panel
-            title="Trazado"
+            title={t.tracingTitle}
             action={
               <button
                 className="text-[13px] font-medium text-route underline-offset-4 hover:underline disabled:opacity-40"
                 disabled={!source}
                 onClick={() => source && updateSettings(autoSettings(source.gray))}
               >
-                Ajuste automático
+                {t.autoAdjust}
               </button>
             }
           >
             <Slider
-              label="Umbral de contraste"
+              label={t.threshold}
               value={settings.threshold}
               min={1}
               max={254}
@@ -244,10 +269,10 @@ export default function App() {
                 onChange={(event) => updateSettings({ invert: event.target.checked })}
                 className="accent-route"
               />
-              Trazar las zonas claras en vez de las oscuras
+              {t.invert}
             </label>
             <Slider
-              label="Waypoints máximos"
+              label={t.maxWaypoints}
               value={settings.maxWaypoints}
               min={50}
               max={1000}
@@ -257,9 +282,9 @@ export default function App() {
             />
           </Panel>
 
-          <Panel title="Vuelo">
+          <Panel title={t.flightTitle}>
             <Slider
-              label="Ancho del dibujo"
+              label={t.drawingWidth}
               value={placement.sizeNm}
               min={2}
               max={150}
@@ -268,7 +293,7 @@ export default function App() {
               onChange={(sizeNm) => setPlacement((p) => ({ ...p, sizeNm }))}
             />
             <Slider
-              label="Rotación"
+              label={t.rotation}
               value={placement.rotationDeg}
               min={-180}
               max={180}
@@ -277,7 +302,7 @@ export default function App() {
               onChange={(rotationDeg) => setPlacement((p) => ({ ...p, rotationDeg }))}
             />
             <Slider
-              label="Velocidad de crucero"
+              label={t.cruiseSpeed}
               value={speedKt}
               min={60}
               max={250}
@@ -286,20 +311,17 @@ export default function App() {
               onChange={setSpeedKt}
             />
             <p className="text-[13px] leading-relaxed text-muted">
-              Radio de viraje a {speedKt} kt con {BANK_ANGLE_DEG}° de alabeo:{' '}
-              {turnRadius.toFixed(2)} NM. Las curvas se simplifican hasta medio radio y se descartan
-              las figuras demasiado pequeñas para volarlas; las esquinas cerradas el avión las
-              redondeará.
+              {t.turnRadiusNote(speedKt, BANK_ANGLE_DEG, turnRadius.toFixed(2))}
             </p>
           </Panel>
 
-          <Panel title="Ruta">
+          <Panel title={t.routeTitle}>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               {[
-                ['Waypoints', String(route.length)],
-                ['Distancia', `${stats.totalNm.toFixed(1)} NM`],
-                ['Tiempo', `${Math.floor(stats.minutes / 60)} h ${Math.round(stats.minutes % 60)} min`],
-                ['Enlaces visibles', `${stats.jumpNm.toFixed(1)} NM`],
+                [t.waypoints, String(route.length)],
+                [t.distance, `${stats.totalNm.toFixed(1)} NM`],
+                [t.time, `${Math.floor(stats.minutes / 60)} h ${Math.round(stats.minutes % 60)} min`],
+                [t.visibleConnectors, `${stats.jumpNm.toFixed(1)} NM`],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-[13px] text-muted">{label}</dt>
@@ -322,7 +344,7 @@ export default function App() {
               ))}
             </div>
             <p className="text-[13px] leading-relaxed text-muted">
-              Solo para planificación. Comprueba espacio aéreo, terreno y NOTAM antes de volar.
+              {t.disclaimer}
             </p>
           </Panel>
         </aside>
@@ -332,10 +354,11 @@ export default function App() {
             center={placement.center}
             points={route}
             legs={traced.legs}
+            startLabel={t.routeStart}
             onCenterChange={(center) => setPlacement((p) => ({ ...p, center }))}
           />
           <p className="pointer-events-none absolute top-3 left-3 z-[1000] rounded-md bg-paper/90 px-3 py-1.5 text-[13px] text-ink shadow-sm">
-            Haz clic en el mapa para colocar el dibujo
+            {t.mapHint}
           </p>
         </main>
       </div>
