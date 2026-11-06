@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* Stone and blueprint: reads like a printed aviation chart. */
+@theme {
+  --color-paper: #dfdedb;
+  --color-panel: #d3d2ce;
+  --color-ink: #26251e;
+  --color-muted: #5a5850;
+  --color-line: #b9b7b1;
+  --color-route: #2456d6;
+  --color-jump: #c2410c;
+  --font-sans: "Epilogue", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.leaflet-container {
+  background: var(--color-panel);
+  font-family: var(--font-sans);
+}
