@@ -36,7 +36,7 @@ export function rasterize(image: HTMLImageElement): GrayImage {
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext('2d', { willReadFrequently: true })
-  if (!context) throw new Error('Canvas 2D no disponible')
+  if (!context) throw new Error('Canvas 2D is not available')
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, width, height)
   context.drawImage(image, 0, 0, width, height)

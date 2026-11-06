@@ -7,6 +7,7 @@ type Props = {
   center: LatLng
   points: LatLng[]
   legs: LegKind[]
+  startLabel: string
   onCenterChange: (center: LatLng) => void
 }
 
@@ -29,7 +30,7 @@ function groupLegs(points: LatLng[], legs: LegKind[]) {
   return { drawn, jumps }
 }
 
-export function RouteMap({ center, points, legs, onCenterChange }: Props) {
+export function RouteMap({ center, points, legs, startLabel, onCenterChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const layersRef = useRef<L.LayerGroup | null>(null)
   const onCenterChangeRef = useRef(onCenterChange)
@@ -69,9 +70,9 @@ export function RouteMap({ center, points, legs, onCenterChange }: Props) {
     L.polyline(drawn, { color: '#2456d6', weight: 3 }).addTo(layers)
     L.polyline(jumps, { color: '#c2410c', weight: 2, dashArray: '6 6' }).addTo(layers)
     L.circleMarker(points[0], { radius: 6, color: '#2456d6', fillOpacity: 1 })
-      .bindTooltip('Inicio')
+      .bindTooltip(startLabel)
       .addTo(layers)
-  }, [center, points, legs])
+  }, [center, points, legs, startLabel])
 
   return <div ref={containerRef} className="h-full w-full" />
 }
